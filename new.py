@@ -34,7 +34,7 @@ class BrowseHelper():
             return returnObj
 
     def initialize(self):
-        return webdriver.Firefox(executable_path=r'D:\Investment\billionaireFamily\resources\geckodriver.exe')
+        return webdriver.Firefox(executable_path=r'~/billionaireFamily/resources/geckodriver')
             
 class SoapHelper():    
     def convertBlockToSoap(self, htmlBlock):
@@ -58,7 +58,7 @@ class Financial_Info():
         self.loadURL()
     
     def loadURL(self):
-        self.br.get("{}{}".format("http://www.msn.com/en-us/money/stockdetails", self.shareKey))
+        self.br.get("{}{}".format("http://www.msn.com/en-us/money/stockdetails/", self.shareKey))
         return
         
     def crawl(self):
@@ -139,7 +139,7 @@ class Financial_Info():
                 break
         if len(output) == 0:
             output.append(None)
-            print rec
+            print (rec)
         return output
         
     def blockSelector(self, className):
@@ -220,15 +220,21 @@ class Financial_Info():
     
 # define the webdriver
 browser = BrowseHelper().initialize()
+
 # page request
-browser.get("http://www.msn.com/en-us/money/stockdetails/fi-126.1.GOOGL.NAS")
-finObj = Financial_Info(browser, "Per")
+#browser.get("http://www.msn.com/en-us/money/stockdetails/fi-126.1.GOOGL.NAS")
+finObj = Financial_Info(browser, "Per", "fi-126.1.GOOGL.NAS")
 finObj.crawl()
 
-print finObj.NetIncome, finObj.Revenue, finObj.EPS, finObj.GrossProfit
-print finObj.Assets, finObj.Equity, finObj.Liabilities, finObj.LiabilitiesAndEquity
-print finObj.BookValue, finObj.NetProfitMargin
-#
+print (finObj.NetIncome, finObj.Revenue, finObj.EPS, finObj.GrossProfit)
+print (finObj.Assets, finObj.Equity, finObj.Liabilities, finObj.LiabilitiesAndEquity)
+print (finObj.BookValue, finObj.NetProfitMargin)
+
+
+#http://www.xetra.com/xetra-en/instruments/shares/listing-and-introduction
+# http://www.msn.com/en-us/money/stockdetails/fi-200.1.{symbol}.FRA
+
+
 #el = browser.find_element_by_class_name("key-ratios-tabs")
 #print el.find_element_by_class_name("active").text.lower()
 #print el.getAttribute("class")
