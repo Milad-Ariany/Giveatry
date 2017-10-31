@@ -11,7 +11,6 @@ from enum import Enum
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import _thread
@@ -40,16 +39,17 @@ class SoapHelper():
     def convertBlockToSoap(self, htmlBlock):
         return BeautifulSoup('<html>' + str(htmlBlock) + '</html>')
 
-class share():
+class Share():
     def __init__(self, symbol):
-        self._symbol = symbol
-        self.sector = None # Tech, Industry, ...
-        self._companyName = None # company Name
-        self._isin = None
-        self._openingPrice = None
-        self._openingDate = None      
+        self.SYMBOL = symbol
+        self.SECTOR = None # Tech, Industry, ...
+        self.COMPANYNAME = None
+        self.COUNTRY = None
+        self.ISIN = None
+        self.OPENINGPRICE = None
+        self.OPENINGDATE = None      
         
-class shareDiscovery():
+class ShareDiscovery():
     def __init__(self, browser):
         self.BR = browser
         self.DOMAIN = "http://www.xetra.com/"
@@ -57,8 +57,7 @@ class shareDiscovery():
         self.PAGESIZE = 50
         self.PAGENUM = 0
         self.PAGINGLENGTH = 0
-        self.loadURL()
-        self.readPagingLength()
+        self.RESULT = dict() # <shareSymbol, shareObj>
         return
         
     def loadURL(self):
@@ -67,11 +66,6 @@ class shareDiscovery():
         self.BR.get(_url.format(self.PAGESIZE, self.PAGENUM))
         return
         
-    def nextPage(self):
-        self.PAGENUM += 1
-        self.loadURL()
-        return
-    
     def readPagingLength(self):
         # read the pagination section which is represented as a ul HTML element
         # with nav-page class name
@@ -82,37 +76,46 @@ class shareDiscovery():
         # ...
         # </ul>
         _max = 0
-        _num = 0
+        _pageNum = 0
         # find the biggest paging number
         for _li in _block.find_all( "li" ):
             _btn = _li.find( "button" )
             if _btn is not None:
-                _num = _btn["value"]
-            if int(_num) > _max:
-                _max = int(_num)
+                _pageNum = cast(_btn["value"], int, 0)
+                if _pageNum > _max:
+                    _max = _pageNum
                 
         self.PAGINGLENGTH = _max
-        print (self.PAGINGLENGTH)
+        print ( "Paging length is {}".format( self.PAGINGLENGTH ) )
         return
         
     def crawl(self):
-        # find paging length
-        
+        # build the initial url and load it
+        self.loadURL()
+        # How many pages are there
+        self.readPagingLength()
         # collect url of each share in a list
         _shareURLs = list()
-        # read the current page and select the table which is represented 
-        # as a ol HTML element with search-result class name
-        _block = self.blockSelector("ol", "search-results")
-        # collect all urls in the list and add them to the main list
-        _shareURLs += self.readList(_block)
-        # call the next pages in a loop and repeat the above process
+        # read each page
         for i in range(self.PAGINGLENGTH):
-            self.nextPage()
+            # which page
+            self.PAGENUM = i
+            # load page
+            self.loadURL()
+            # read the current page and select the table which is represented 
+            # as a ol HTML element with search-result class name
             _block = self.blockSelector("ol", "search-results")
+            # collect all urls in the list and add them to the main list
             _shareURLs += self.readList(_block)
+            # call the next pages in a loop and repeat the above process
         
-        print (len(_shareURLs))
-        # open the url of each share to collect more information about that
+        print ( "Number of elements is {}".format(len(_shareURLs)) )
+        # devide the main list to sublist to apply parallelization
+        # self.readShareInfo(_shareURLs)
+        _chunks = [_shareURLs[ x:x + 100 ] for x in range(0, len( _shareURLs ), 100)]
+        # process each chunk in a seprated browser
+        for _chk in _chunks:
+            _thread.start_new_thread( self.readShareInfo, ( _chk, ))
         return
     
     def readList(self, block):
@@ -129,18 +132,91 @@ class shareDiscovery():
         
         return _hrefList
         
-    def blockSelector(self, htmlElement, className):
+    def blockSelector(self, htmlElement, className, pageSource = None):
+        if pageSource is None:
+            pageSource = self.BR.page_source
         # element: type of HTML element which has to be selected
         # className: class name of the specified HTML element
-        _soap = BeautifulSoup(self.BR.page_source, 'html.parser')
+        _soap = BeautifulSoup(pageSource, 'html.parser')
         ## extract a block of the page and convert it to a soap object
         _block = SoapHelper().convertBlockToSoap(_soap.find(htmlElement, {"class" : className}))
         return _block
     
-def tmp1(a1):
-    print (a1)    
+    def readShareInfo(self, urls):
+        print ( "Started" )
+        browser = BrowseHelper().initialize()
+        # iterate over share urls
+        for _url in urls:
+            _url = self.DOMAIN + _url
+            # open the url
+            browser.get(_url)
+            # expected structure
+            # <dl class="list-tradable-details">
+            # <dt> lable </dt>
+            # <dd> value </dd>
+            shareObj = self.Idonknow(browser.page_source)
+            self.RESULT[ shareObj.SYMBOL ] = shareObj
+            
+        print ( "I am finished" )
+        return
+    
+    def Idonknow(self, pageSource):
+        shareObj = Share(None)
+        
+        if pageSource is None:
+            return shareObj
+        
+        # find company name which is laid in <h2 class="main-titel"> COMPANY <h2>
+        shareObj.COMPANYNAME = BeautifulSoup(pageSource, "html.parser").find("h2", {"class" : "main-title"}).get_text()
+        
+        # Other info is structed as
+        # <dl class="list-tradable-details">
+        # <dt> lable </dt>
+        # <dd> value </dd>
+        _block = self.blockSelector("dl", "list-tradable-details", pageSource)
+        # read each pare of label and values
+        for _dt in _block.find_all( "dt" ):
+            if "sector" in _dt.get_text().lower():
+                # find the next dd element which stores the value
+                _dd = _dt.find_next_sibling("dd")
+                shareObj.SECTOR = _dd.get_text()
+                continue
+            elif "country" in _dt.get_text().lower():
+                # find the next dd element which stores the value
+                _dd = _dt.find_next_sibling("dd")
+                shareObj.COUNTRY = _dd.get_text()
+                continue
+            elif "symbol" in _dt.get_text().lower():
+                # find the next dd element which stores the value
+                _dd = _dt.find_next_sibling("dd")
+                shareObj.SYMBOL= _dd.get_text()
+                continue
+            elif "isin" in _dt.get_text().lower():
+                # find the next dd element which stores the value
+                _dd = _dt.find_next_sibling("dd")
+                shareObj.ISIN = _dd.get_text()
+                continue
+            elif "first trading day" in _dt.get_text().lower():
+                # find the next dd element which stores the value
+                _dd = _dt.find_next_sibling("dd")
+                shareObj.OPENINGDATE = _dd.get_text()
+                continue
+            elif "first price" in _dt.get_text().lower():
+                # find the next dd element which stores the value
+                _dd = _dt.find_next_sibling("dd")
+                shareObj.OPENINGPRICE = _dd.get_text()
+                
+        return shareObj
+
+def cast(val, to_type, default=None):
+    try:
+        return to_type(val)
+    except (ValueError, TypeError):
+        print ( "Error in casting {} to {}".format(val, to_type) )
+        return default
+    
 # define the webdriver
 browser = BrowseHelper().initialize()
-discoveryObj = shareDiscovery(browser)
-print (discoveryObj.PAGINGLENGTH)
+discoveryObj = ShareDiscovery(browser)
 discoveryObj.crawl()
+print ( len(discoveryObj.RESULT) )

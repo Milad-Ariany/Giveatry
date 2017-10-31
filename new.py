@@ -34,7 +34,7 @@ class BrowseHelper():
             return returnObj
 
     def initialize(self):
-        return webdriver.Firefox(executable_path=r'~/billionaireFamily/resources/geckodriver')
+        return webdriver.Firefox(executable_path=r'/home/milad/billionaireFamily/resources/geckodriver')
             
 class SoapHelper():    
     def convertBlockToSoap(self, htmlBlock):
