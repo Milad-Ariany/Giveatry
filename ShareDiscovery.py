@@ -6,33 +6,9 @@ Created on Mon Oct 30 20:53:11 2017
 @author: milad
 """
 
-
-from enum import Enum
 from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 import _thread
-
-class Selector(Enum):
-    ID = 0,
-    Class = 1 
-    
-class BrowseHelper():
-    def click(self, browser, selector, elem, expectedElemID):
-        returnObj = None
-        try:
-            elem.click()
-            if selector == Selector.ID:
-                returnObj = WebDriverWait(browser, 20).until(EC.presence_of_element_located((By.ID, expectedElemID)))
-            elif selector == Selector.Class:
-                returnObj = WebDriverWait(browser, 20).until(EC.presence_of_element_located((By.CLASS_NAME, expectedElemID)))
-        finally:
-            return returnObj
-
-    def initialize(self):
-        return webdriver.Firefox(executable_path=r'/home/milad/billionaireFamily/resources/geckodriver')
+from subprocess import PIPE, Popen
             
 class SoapHelper():
     # conver a HTML code block to a beautifulsoap object
@@ -50,8 +26,8 @@ class Share():
         self.OPENINGDATE = None      
         
 class ShareDiscovery():
-    def __init__(self, browser):
-        self.BR = browser
+    def __init__(self):
+        # self.BR = browser
         self.DOMAIN = "http://www.xetra.com/"
         self.BASEURL = "xetra-en/instruments/shares/listing-and-introduction/1533230!search?hitsPerPage={}&pageNum={}"
         self.PAGESIZE = 50
@@ -65,11 +41,16 @@ class ShareDiscovery():
         _url = self.DOMAIN + self.BASEURL
         self.BR.get(_url.format(self.PAGESIZE, self.PAGENUM))
         return
+    
+    def loadcURL(self):
+        # generate the url using the paginSize and pageNum params
+        _url = self.DOMAIN + self.BASEURL
+        return browse(_url.format(self.PAGESIZE, self.PAGENUM))
         
-    def readPagingLength(self):
+    def readPagingLength(self, pageSource):
         # read the pagination section which is represented as a ul HTML element
         # with nav-page class name
-        _block = self.blockSelector("ul", "nav-page")
+        _block = self.blockSelector("ul", "nav-page", pageSource)
         # expected format
         # <ul>
         # <li> <button value="page number"> 
@@ -91,9 +72,9 @@ class ShareDiscovery():
         
     def crawl(self):
         # build the initial url and load it
-        self.loadURL()
+        _pageSource = self.loadcURL()
         # How many pages are there
-        self.readPagingLength()
+        self.readPagingLength(_pageSource)
         # collect url of each share in a list
         _shareURLs = list()
         # read each page
@@ -101,10 +82,10 @@ class ShareDiscovery():
             # which page
             self.PAGENUM = i
             # load page
-            self.loadURL()
+            _pageSource = self.loadcURL()
             # read the current page and select the table which is represented 
             # as a ol HTML element with search-result class name
-            _block = self.blockSelector("ol", "search-results")
+            _block = self.blockSelector("ol", "search-results", _pageSource)
             # collect all urls in the list and add them to the main list
             _shareURLs += self.readList(_block)
             # call the next pages in a loop and repeat the above process
@@ -144,17 +125,19 @@ class ShareDiscovery():
     
     def readShareInfo(self, urls):
         print ( "Started" )
-        browser = BrowseHelper().initialize()
+        #browser = BrowseHelper().initialize()
         # iterate over share urls
+        urls = urls[ :3 ]
         for _url in urls:
             _url = self.DOMAIN + _url
-            # open the url
-            browser.get(_url)
+            # open the url and convert it to a soup object
+            #browser.get(_url)
+            _pageSource = browse(_url)
             # expected structure
             # <dl class="list-tradable-details">
             # <dt> lable </dt>
             # <dd> value </dd>
-            shareObj = self.Idonknow(browser.page_source)
+            shareObj = self.Idonknow(_pageSource)
             self.RESULT[ shareObj.SYMBOL ] = shareObj
             
         print ( "I am finished" )
@@ -214,9 +197,16 @@ def cast(val, to_type, default=None):
     except (ValueError, TypeError):
         print ( "Error in casting {} to {}".format(val, to_type) )
         return default
+
+def browse(url):
+    _cmd = ' '.join(["curl"] + [url])
+    # call the url using cURL from shell
+    process = Popen(_cmd, stdout=PIPE, shell=True)
+    out, err = process.communicate()
+    # return page source 
+    return out
     
-# define the webdriver
-browser = BrowseHelper().initialize()
-discoveryObj = ShareDiscovery(browser)
+discoveryObj = ShareDiscovery()
 discoveryObj.crawl()
-print ( len(discoveryObj.RESULT) )
+# print ( len(discoveryObj.RESULT) )
+
