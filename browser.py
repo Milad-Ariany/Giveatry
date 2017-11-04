@@ -7,23 +7,45 @@ Created on Thu Jun 29 12:28:56 2017
 
  
 from enum import Enum
-from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from subprocess import PIPE, Popen
+
 
 class BrowserActions(Enum):
     click = 0
     
-class BrowseHelper():
-    def click(self, browser, elem, expectedElemID):
+class Selector(Enum):
+    ID = 0,
+    Class = 1
+    
+class SeleniumHelper(webdriver):
+    # Click on a ajax button which loads part of a page 
+    def ajaxClick(self, browser, selector, elem, expectedElemID):
+        returnObj = None
         try:
-            returnObj = WebDriverWait(browser, 10).until(EC.presence_of_element_located((By.ID, expectedElemID)))
+            elem.click()
+            if selector == Selector.ID:
+                returnObj = WebDriverWait(browser, 20).until(EC.presence_of_element_located((By.ID, expectedElemID)))
+            elif selector == Selector.Class:
+                returnObj = WebDriverWait(browser, 20).until(EC.presence_of_element_located((By.CLASS_NAME, expectedElemID)))
         finally:
             return returnObj
+
+    def initialize(self):
+       return webdriver.Firefox(executable_path=r'/home/milad/billionaireFamily/resources/geckodriver')
             
+def cURL(url):
+    _cmd = ' '.join(["curl"] + [url])
+    # call the url using cURL from shell
+    process = Popen(_cmd, stdout=PIPE, shell=True)
+    out, err = process.communicate()
+    # return page source 
+    return out
+
+
 class Crawl():
     def __init__(self, stockKey):
         self.key_ = stockKey
@@ -85,7 +107,7 @@ for ultag in block.find_all("ul"):
     for litag in ultag.find_all("li"):
         if "Basic EPS" in litag.text.strip():
             flag = True # values in this row have to be stored
-            print "Found"
+            print ("Found")
             continue
         if flag:
             historical_eps.append(litag.text.strip())
