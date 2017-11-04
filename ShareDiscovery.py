@@ -6,15 +6,11 @@ Created on Mon Oct 30 20:53:11 2017
 @author: milad
 """
 
-from bs4 import BeautifulSoup
+import BShelper as soup
 import _thread
-from subprocess import PIPE, Popen
-            
-class SoapHelper():
-    # conver a HTML code block to a beautifulsoap object
-    def convertBlockToSoap(self, htmlBlock):
-        return BeautifulSoup('<html>' + str(htmlBlock) + '</html>')
-
+import browser as br   
+import tools
+         
 class Share():
     def __init__(self, symbol):
         self.SYMBOL = symbol
@@ -35,22 +31,17 @@ class ShareDiscovery():
         self.PAGINGLENGTH = 0
         self.RESULT = dict() # <shareSymbol, shareObj>
         return
-        
-    def loadURL(self):
-        # load a page using the paginSize and pageNum params
-        _url = self.DOMAIN + self.BASEURL
-        self.BR.get(_url.format(self.PAGESIZE, self.PAGENUM))
-        return
     
-    def loadcURL(self):
+    def loadURL(self):
         # generate the url using the paginSize and pageNum params
         _url = self.DOMAIN + self.BASEURL
-        return browse(_url.format(self.PAGESIZE, self.PAGENUM))
+        return br.cURL(_url.format(self.PAGESIZE, self.PAGENUM))
         
     def readPagingLength(self, pageSource):
         # read the pagination section which is represented as a ul HTML element
         # with nav-page class name
-        _block = self.blockSelector("ul", "nav-page", pageSource)
+        _soup = soup.Helper()
+        _block = _soup.elemSelector("ul", {"class": "nav-page"}, pageSource)
         # expected format
         # <ul>
         # <li> <button value="page number"> 
@@ -62,7 +53,7 @@ class ShareDiscovery():
         for _li in _block.find_all( "li" ):
             _btn = _li.find( "button" )
             if _btn is not None:
-                _pageNum = cast(_btn["value"], int, 0)
+                _pageNum = tools.cast(_btn["value"], int, 0)
                 if _pageNum > _max:
                     _max = _pageNum
                 
@@ -72,29 +63,29 @@ class ShareDiscovery():
         
     def crawl(self):
         # build the initial url and load it
-        _pageSource = self.loadcURL()
+        _pageSource = self.loadURL()
         # How many pages are there
         self.readPagingLength(_pageSource)
         # collect url of each share in a list
         _shareURLs = list()
+        _soup = soup.Helper()
         # read each page
         for i in range(self.PAGINGLENGTH):
             # which page
             self.PAGENUM = i
             # load page
-            _pageSource = self.loadcURL()
+            _pageSource = self.loadURL()
             # read the current page and select the table which is represented 
             # as a ol HTML element with search-result class name
-            _block = self.blockSelector("ol", "search-results", _pageSource)
+            _block = _soup.elemSelector("ol", {"class": "search-results"}, _pageSource)
             # collect all urls in the list and add them to the main list
             _shareURLs += self.readList(_block)
             # call the next pages in a loop and repeat the above process
         
         print ( "Number of elements is {}".format(len(_shareURLs)) )
-        # devide the main list to sublist to apply parallelization
-        # self.readShareInfo(_shareURLs)
+        # devide the main list to chunks to apply parallelization
         _chunks = [_shareURLs[ x:x + 100 ] for x in range(0, len( _shareURLs ), 100)]
-        # process each chunk in a seprated browser
+        # process chunks in parallel
         for _chk in _chunks:
             _thread.start_new_thread( self.readShareInfo, ( _chk, ))
         return
@@ -112,16 +103,6 @@ class ShareDiscovery():
                 _hrefList.append( _a["href"] )
         
         return _hrefList
-        
-    def blockSelector(self, htmlElement, className, pageSource = None):
-        if pageSource is None:
-            pageSource = self.BR.page_source
-        # element: type of HTML element which has to be selected
-        # className: class name of the specified HTML element
-        _soap = BeautifulSoup(pageSource, 'html.parser')
-        ## extract a block of the page and convert it to a soap object
-        _block = SoapHelper().convertBlockToSoap(_soap.find(htmlElement, {"class" : className}))
-        return _block
     
     def readShareInfo(self, urls):
         print ( "Started" )
@@ -132,7 +113,7 @@ class ShareDiscovery():
             _url = self.DOMAIN + _url
             # open the url and convert it to a soup object
             #browser.get(_url)
-            _pageSource = browse(_url)
+            _pageSource = br.cURL(_url)
             # expected structure
             # <dl class="list-tradable-details">
             # <dt> lable </dt>
@@ -149,14 +130,15 @@ class ShareDiscovery():
         if pageSource is None:
             return shareObj
         
+        _soup = soup.Helper()
         # find company name which is laid in <h2 class="main-titel"> COMPANY <h2>
-        shareObj.COMPANYNAME = BeautifulSoup(pageSource, "html.parser").find("h2", {"class" : "main-title"}).get_text()
+        shareObj.COMPANYNAME = _soup.elemSelector("h2", {"class" : "main-title"}, pageSource).get_text()
         
         # Other info is structed as
         # <dl class="list-tradable-details">
         # <dt> lable </dt>
         # <dd> value </dd>
-        _block = self.blockSelector("dl", "list-tradable-details", pageSource)
+        _block = _soup.elemSelector("dl", {"class": "list-tradable-details"}, pageSource)
         # read each pare of label and values
         for _dt in _block.find_all( "dt" ):
             if "sector" in _dt.get_text().lower():
@@ -191,22 +173,7 @@ class ShareDiscovery():
                 
         return shareObj
 
-def cast(val, to_type, default=None):
-    try:
-        return to_type(val)
-    except (ValueError, TypeError):
-        print ( "Error in casting {} to {}".format(val, to_type) )
-        return default
-
-def browse(url):
-    _cmd = ' '.join(["curl"] + [url])
-    # call the url using cURL from shell
-    process = Popen(_cmd, stdout=PIPE, shell=True)
-    out, err = process.communicate()
-    # return page source 
-    return out
     
 discoveryObj = ShareDiscovery()
 discoveryObj.crawl()
 # print ( len(discoveryObj.RESULT) )
-
