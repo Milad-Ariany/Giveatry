@@ -6,43 +6,18 @@ Created on Mon Aug 14 20:33:20 2017
 """
 
 from enum import Enum
-from bs4 import BeautifulSoup
-from selenium import webdriver
+import BShelper as soup
+from browser import SeleniumHelper
+from browser import Selector
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
 class Period (Enum):
     Annual = 0,
     Quarter = 1
-
-class Selector(Enum):
-    ID = 0,
-    Class = 1
-    
-class BrowseHelper():
-    def click(self, browser, selector, elem, expectedElemID):
-        returnObj = None
-        try:
-            elem.click()
-            if selector == Selector.ID:
-                returnObj = WebDriverWait(browser, 20).until(EC.presence_of_element_located((By.ID, expectedElemID)))
-            elif selector == Selector.Class:
-                returnObj = WebDriverWait(browser, 20).until(EC.presence_of_element_located((By.CLASS_NAME, expectedElemID)))
-        finally:
-            return returnObj
-
-    def initialize(self):
-        return webdriver.Firefox(executable_path=r'/home/milad/billionaireFamily/resources/geckodriver')
-            
-class SoapHelper():    
-    def convertBlockToSoap(self, htmlBlock):
-        return BeautifulSoup('<html>' + str(htmlBlock) + '</html>')
-
+         
 class Financial_Info():
     def __init__(self, browser, period, shareKey):
-        self.br = browser
+        self.br = browser # selenium web browser
         self.period = period
         self.shareKey = shareKey
         self.Revenue = None
@@ -75,20 +50,24 @@ class Financial_Info():
         return
         
     def navigation(self, key):
+        _selenium = SeleniumHelper()
+        
         if key in ["Revenue", "GrossProfit", "NetIncome", "Assets", "Liabilities", "LiabilitiesAndEquity", "Equity", "EPS"]:
-            # navigate to the http://www.msn.com/en-us/money/stockdetails/financials/
+            # Check if the url is correct
+            # else navigate to # navigate to the http://www.msn.com/en-us/money/stockdetails/financials/
+            # by clicking on "Finanacials" ajax button
             if "financials" not in self.br.current_url:
-                BrowseHelper().click(self.br, Selector.ID,
-                                     self.br.find_element(By.LINK_TEXT, "Financials"),
-                                     "income_statement_text"
-                                     )
+                _selenium.ajaxClick(self.br, Selector.ID,
+                                    self.br.find_element(By.LINK_TEXT, "Financials"),
+                                    "income_statement_text"
+                                    )
             ## inner navigation
             # Income statement tab
             if key in ["Revenue", "GrossProfit", "NetIncome", "EPS"]:
                 if self.br.find_element_by_id("financials-accordian-list").find_element_by_class_name("active").text.strip().lower() == "income statement":
                     return
                 ## Shift to Income statement
-                BrowseHelper().click(self.br, Selector.ID,
+                _selenium.ajaxClick(self.br, Selector.ID,
                                     self.br.find_element_by_id("financials-accordian-list").find_elements_by_tag_name("li")[0],
                                     "barchartcontainerid_Revenue"
                                     )
@@ -98,7 +77,7 @@ class Financial_Info():
                 if self.br.find_element_by_id("financials-accordian-list").find_element_by_class_name("active").text.strip().lower() == "balance sheet":
                     return
                 ## Shift to Balance Sheet
-                BrowseHelper().click(self.br, Selector.ID,
+                _selenium.ajaxClick(self.br, Selector.ID,
                                     self.br.find_element_by_id("financials-accordian-list").find_elements_by_tag_name("li")[1],
                                     "barchartcontainerid_TotalAssets"
                                     )
@@ -106,7 +85,7 @@ class Financial_Info():
         elif key in ["NetProfitMargin", "BookValue"]:
             # navigate to the http://www.msn.com/en-us/money/stockdetails/analysis/
             if "analysis" not in self.br.current_url:
-                BrowseHelper().click(self.br, Selector.Class, 
+                _selenium.ajaxClick(self.br, Selector.Class, 
                                      self.br.find_element(By.LINK_TEXT, "Analysis"),
                                      "key-ratios-tabs"
                                      )
@@ -114,7 +93,7 @@ class Financial_Info():
             #Key statistics tab
             if self.br.find_element_by_class_name("key-ratios-tabs").find_element_by_class_name("active").text.strip().lower() == "key statistics":
                 return
-            BrowseHelper().click(self.br, Selector.Class,
+            _selenium.ajaxClick(self.br, Selector.Class,
                                     self.br.find_element_by_class_name("key-ratios-tabs").find_elements_by_tag_name("li")[0],
                                     "keystatistics"
                                     )
@@ -122,108 +101,109 @@ class Financial_Info():
         return
 
     def extractUlLi(self, block, indicator):
-        rec = list()
-        found = False
-        output = list()
-        for ultag in block.find_all("ul"):
-            for litag in ultag.find_all("li"):
+        _rec = list()
+        _found = False
+        _output = list()
+        for _ultag in block.find_all("ul"):
+            for _litag in _ultag.find_all("li"):
                 # if the first li value equals the indicator
-                if not found and indicator not in litag.text.strip():
-                    rec.append(litag.text.strip())
+                if not _found and indicator not in _litag.text.strip():
+                    _rec.append(_litag.text.strip())
                     break # next ul
-                elif not found:
-                    found = True
+                elif not _found:
+                    _found = True
                     continue # next li
-                output.append(litag.text.strip())
-            if found: # leave the loops
+                _output.append(_litag.text.strip())
+            if _found: # leave the loops
                 break
-        if len(output) == 0:
-            output.append(None)
-            print (rec)
-        return output
-        
-    def blockSelector(self, className):
-        soap = BeautifulSoup(self.br.page_source, 'html.parser')
-        ## extract a block of the page and convert it to a soap object
-        block = SoapHelper().convertBlockToSoap(soap.find("div", {"class" : className}))
-        return block
+        if len(_output) == 0:
+            _output.append(None)
+            print (_rec)
+        return _output
         
     def setRevenue(self):
         self.navigation("Revenue")
-        block = self.blockSelector("table-data-rows")
-        ls = self.extractUlLi(block, "Total Revenue")
-        self.Revenue = ls[len(ls) - 1] # keep the last record
+        _soup = soup.Helper()
+        _block = _soup.elemSelector( "div", {"class": "table-data-rows"}, self.br.page_source )
+        _ls = self.extractUlLi(_block, "Total Revenue")
+        self.Revenue = _ls[ len(_ls) - 1 ] # keep the last record
         return
     
     def setGrossProfit(self):
         self.navigation("GrossProfit")
-        block = self.blockSelector("table-data-rows")
-        ls = self.extractUlLi(block, "Gross Profit")
-        self.GrossProfit = ls[len(ls) - 1] # keep the last record
+        _soup = soup.Helper()
+        _block = _soup.elemSelector( "div", {"class": "table-data-rows"}, self.br.page_source )
+        _ls = self.extractUlLi(_block, "Gross Profit")
+        self.GrossProfit = _ls[ len(_ls) - 1 ] # keep the last record
         return
     
     def setNetIncome(self):
         self.navigation("NetIncome")
-        block = self.blockSelector("table-data-rows")
-        ls = self.extractUlLi(block, "Net Income")
-        self.NetIncome = ls[len(ls) - 1] # keep the last record
+        _soup = soup.Helper()
+        _block = _soup.elemSelector( "div", {"class": "table-data-rows"}, self.br.page_source )
+        _ls = self.extractUlLi( _block, "Net Income" )
+        self.NetIncome = _ls[ len(_ls) - 1 ] # keep the last record
         return
     
     def setEPS(self):
-        self.navigation("EPS")
-        block = self.blockSelector("table-data-rows")
-        ls = self.extractUlLi(block, "Basic EPS")
-        self.EPS = ls[len(ls) - 1] # keep the last record
+        self.navigation( "EPS" )
+        _soup = soup.Helper()
+        _block = _soup.elemSelector( "div", {"class": "table-data-rows"}, self.br.page_source )
+        _ls = self.extractUlLi( _block, "Basic EPS" )
+        self.EPS = _ls[ len(_ls) - 1 ] # keep the last record
         return
         
     def setAssets(self):
         self.navigation("Assets")
-        block = self.blockSelector("table-data-rows")
-        ls = self.extractUlLi(block, "Total Assets")
-        self.Assets = ls[len(ls) - 1] # keep the last record
+        _soup = soup.Helper()
+        _block = _soup.elemSelector( "div", {"class": "table-data-rows"}, self.br.page_source )
+        _ls = self.extractUlLi(_block, "Total Assets")
+        self.Assets = _ls[ len(_ls) - 1 ] # keep the last record
         return
     
     def setLiabilities(self):
         self.navigation("Liabilities")
-        block = self.blockSelector("table-data-rows")
-        ls = self.extractUlLi(block, "Total Liabilities")
-        self.Liabilities = ls[len(ls) - 1] # keep the last record
+        _soup = soup.Helper()
+        _block = _soup.elemSelector( "div", {"class": "table-data-rows"}, self.br.page_source )
+        _ls = self.extractUlLi(_block, "Total Liabilities")
+        self.Liabilities = _ls[ len(_ls) - 1 ] # keep the last record
         return
     
     def setEquity(self):
         self.navigation("Equity")
-        block = self.blockSelector("table-data-rows")
-        ls = self.extractUlLi(block, "Total Equity")
-        self.Equity = ls[len(ls) - 1] # keep the last record
+        _soup = soup.Helper()
+        _block = _soup.elemSelector( "div", {"class": "table-data-rows"}, self.br.page_source )
+        _ls = self.extractUlLi(_block, "Total Equity")
+        self.Equity = _ls[ len(_ls) - 1 ] # keep the last record
         return
         
     def setLiabilitiesAndEquity(self):
         self.navigation("LiabilitiesAndEquity")
-        block = self.blockSelector("table-data-rows")
-        ls = self.extractUlLi(block, "Total Liabilities and Equity")
-        self.LiabilitiesAndEquity = ls[len(ls) - 1] # keep the last record
+        _soup = soup.Helper()
+        _block = _soup.elemSelector( "div", {"class": "table-data-rows"}, self.br.page_source )
+        _ls = self.extractUlLi(_block, "Total Liabilities and Equity")
+        self.LiabilitiesAndEquity = _ls[ len(_ls) - 1 ] # keep the last record
         return
         
     def setBookValue(self):
         self.navigation("BookValue")
-        block = self.blockSelector("stock-highlights-right-container")
-        ls = self.extractUlLi(block, "Book Value/Share")
-        self.BookValue = ls[len(ls) - 1] # keep the last record
+        _soup = soup.Helper()
+        _block = _soup.elemSelector( "div", {"class": "stock-highlights-right-container"}, self.br.page_source )
+        _ls = self.extractUlLi(_block, "Book Value/Share")
+        self.BookValue = _ls[ len(_ls) - 1 ] # keep the last record
         return
-                
+
     def setNetProfitMargin(self):
         self.navigation("NetProfitMargin")
-        block = self.blockSelector("stock-highlights-left-container")
-        ls = self.extractUlLi(block, "Net Profit Margin")
-        self.NetProfitMargin = ls[len(ls) - 1] # keep the last record
+        _soup = soup.Helper()
+        _block = _soup.elemSelector( "div", {"class": "stock-highlights-left-container"}, self.br.page_source )
+        _ls = self.extractUlLi(_block, "Net Profit Margin")
+        self.NetProfitMargin = _ls[ len(_ls) - 1 ] # keep the last record
         return
     
-# define the webdriver
-browser = BrowseHelper().initialize()
-
 # page request
 #browser.get("http://www.msn.com/en-us/money/stockdetails/fi-126.1.GOOGL.NAS")
-finObj = Financial_Info(browser, "Per", "fi-126.1.GOOGL.NAS")
+finObj = Financial_Info(SeleniumHelper().initialize(), "Per", "fi-126.1.GOOGL.NAS")
 finObj.crawl()
 
 print (finObj.NetIncome, finObj.Revenue, finObj.EPS, finObj.GrossProfit)
@@ -231,13 +211,8 @@ print (finObj.Assets, finObj.Equity, finObj.Liabilities, finObj.LiabilitiesAndEq
 print (finObj.BookValue, finObj.NetProfitMargin)
 
 
-#http://www.xetra.com/xetra-en/instruments/shares/listing-and-introduction
 # http://www.msn.com/en-us/money/stockdetails/fi-200.1.{symbol}.FRA
 
-
-#el = browser.find_element_by_class_name("key-ratios-tabs")
-#print el.find_element_by_class_name("active").text.lower()
-#print el.getAttribute("class")
 #
 #import cProfile
 #import re
