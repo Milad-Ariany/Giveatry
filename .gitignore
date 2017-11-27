@@ -1,2 +1,6 @@
-
+.spyproject/*
+__pycache__/*
+geckodriver.log
 driver.log
+restats
+
