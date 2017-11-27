@@ -22,6 +22,7 @@ class Share():
         self.OPENINGPRICE = None
         self.OPENINGDATE = None
         self.MSNSYMBOL = None
+        self.WKN = None
         
     def resolveSymbolCountry(self):
         if self.MARKET == MarketPlace.Xetra.name:
