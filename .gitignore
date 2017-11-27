@@ -2,5 +2,5 @@
 __pycache__/*
 geckodriver.log
 driver.log
-restats
+restats*
 
