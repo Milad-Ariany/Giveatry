@@ -7,6 +7,7 @@ Created on Thu Jun 29 12:28:56 2017
 
  
 from enum import Enum
+import urllib
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -51,3 +52,10 @@ def cURL(url):
     out, err = process.communicate()
     # return page source 
     return out
+
+def url_request(url):
+    user_agent = "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7"
+    req_headers={'User-Agent':user_agent} 
+    req = urllib.request.Request( url, headers = req_headers )
+    response = urllib.request.urlopen( req )
+    return response.read()
