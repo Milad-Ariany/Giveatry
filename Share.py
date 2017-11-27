@@ -24,8 +24,8 @@ class Share():
         self.MSNSYMBOL = None
         
     def resolveSymbolCountry(self):
-        if self.MARKET == MarketPlace.Xetra:
-            self.MSNSYMBOL = "fi-200.1.{}.FRA".format(self.SYMBOL)
+        if self.MARKET == MarketPlace.Xetra.name:
+            self.MSNSYMBOL = str("fi-200.1.{}.FRA".format(self.SYMBOL))
         else:
             print ( "NOT GERMANY {} {}".format(self.SYMBOL, self.COUNTRY) )
         return
