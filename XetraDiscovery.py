@@ -13,18 +13,17 @@ from Share import Share
 from Share import MarketPlace
 import json
 from threading import Thread
+import copy
 
-class XetraDiscovery():
+class Xetra():
     def __init__(self):
-        # self.BR = browser
         self.DOMAIN = "http://www.xetra.com/"
-        self.BASEURL = "xetra-en/instruments/shares/listing-and-introduction/1533230!search?hitsPerPage={}&pageNum={}"
-        self.PAGESIZE = 50
+        self.BASEURL = "xetra-en/instruments/shares/listing-and-introduction/1533230!search?hitsPerPage=50&pageNum={}"
         self.PAGENUM = 0
         self.PAGINGLENGTH = 0
         self.RESULT = dict() # <shareSymbol, shareObj>
         return
-            
+                
     def crawl(self):
         # build the initial url and load it
         _pageSource = self.loadURL()
@@ -57,13 +56,12 @@ class XetraDiscovery():
             # processes.append( _thread.start_new_thread(self.readShareInfo , ( _chk, )) )
         for p in processes:
             p.join()
-        self.writeJson()
         return
    
     def loadURL(self):
         # generate the url using the paginSize and pageNum params
         _url = self.DOMAIN + self.BASEURL
-        return br.url_request(_url.format(self.PAGESIZE, self.PAGENUM))
+        return br.url_request(_url.format(self.PAGENUM))
    
     def readPagingLength(self, pageSource):
         # read the pagination section which is represented as a ul HTML element
@@ -118,6 +116,24 @@ class XetraDiscovery():
         return
     
     def populateShareInfo(self, pageSource):
+        return
+    
+  
+class ListingAndIntroduction(Xetra):
+    def __init__(self):
+        self.DOMAIN = "http://www.xetra.com/"
+        self.BASEURL = "xetra-en/instruments/shares/listing-and-introduction/1533230!search?hitsPerPage=50&pageNum={}"
+        self.PAGENUM = 0
+        self.PAGINGLENGTH = 0
+        self.RESULT = dict() # <shareSymbol, shareObj>
+        return
+        
+    def run(self):
+        self.crawl()
+        #self.writeJson()
+        return
+    
+    def populateShareInfo(self, pageSource):
         _shareObj = Share()
         
         if pageSource is None:
@@ -165,17 +181,85 @@ class XetraDiscovery():
         _shareObj.MARKET = MarketPlace.Xetra.name
         _shareObj.resolveSymbolCountry()
         return _shareObj
-    
-    def writeJson(self):
-        ls = []
-        for k, v in self.RESULT.items():
-            ls.append(v)
-        out = dict()
-        out["data"] = ls
-        with open('data.json', 'w') as fp:
-            fp.write( json.dumps( out, default=lambda o: o.__dict__, indent = 4 ) )
-        print ("crawling is finished")
+
+
+class TradableShares(Xetra):
+    def __init__(self):
+        self.DOMAIN = "http://www.xetra.com/"
+        self.BASEURL = "xetra-en/instruments/shares/list-of-tradable-shares/xetra/1576658!search?hitsPerPage=50&pageNum={}"
+        self.PAGENUM = 0
+        self.PAGINGLENGTH = 0
+        self.RESULT = dict() # <shareSymbol, shareObj>
+        return
+        
+    def run(self):
+        self.crawl()
+        #self.writeJson()
         return
     
-discoveryObj = XetraDiscovery()
-discoveryObj.crawl()
+    def populateShareInfo(self, pageSource):
+        _shareObj = Share()
+        
+        if pageSource is None:
+            return _shareObj
+        
+        _soup = soup.Helper()
+        # find company name which is laid in <h2 class="main-titel"> COMPANY <h2>
+        _shareObj.COMPANYNAME = _soup.elemSelector("h2", {"class" : "main-title"}, pageSource).get_text()
+        # Other info is structed as
+        # <dl class="list-tradable-details">
+        # <dt> lable </dt>
+        # <dd> value </dd>
+        _block = _soup.elemSelector("dl", {"class": "list-tradable-instruments"}, pageSource)
+        # read each pare of label and values
+        for _dt in _block.find_all( "dt" ):
+            if "wkn" in _dt.get_text().lower():
+                # find the next dd element which stores the value
+                _dd = _dt.find_next_sibling("dd")
+                _shareObj.WKN = str(_dd.get_text())
+                continue
+            elif "mnemonic" in _dt.get_text().lower():
+                # find the next dd element which stores the value
+                _dd = _dt.find_next_sibling("dd")
+                _shareObj.SYMBOL= str(_dd.get_text())
+                continue
+            elif "isin" in _dt.get_text().lower():
+                # find the next dd element which stores the value
+                _dd = _dt.find_next_sibling("dd")
+                _shareObj.ISIN = str(_dd.get_text())
+                continue
+            elif "mic" in _dt.get_text().lower():
+                # find the next dd element which stores the value
+                _dd = _dt.find_next_sibling("dd")
+                _shareObj.MARKET = str(_dd.get_text())
+        _shareObj.resolveSymbolCountry()
+        return _shareObj
+
+
+
+def writeJson(dictObj):
+    ls = []
+    for k, v in dictObj.items():
+        ls.append(v)
+    out = dict()
+    out["data"] = ls
+    with open('data.json', 'w') as fp:
+        fp.write( json.dumps( out, default=lambda o: o.__dict__, indent = 4 ) )
+    return
+
+def mergeResults(d1, d2):
+    for k, v in d2.items():
+        if k in d1:
+            continue
+        d1[k] = v    
+    return d1
+
+    
+discoveryObj = TradableShares()
+discoveryObj.run()
+
+listingObj = ListingAndIntroduction()
+listingObj.run()
+
+result = mergeResults( copy.copy( discoveryObj.RESULT ), copy.copy( listingObj.RESULT ) )
+writeJson (result)
