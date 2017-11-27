@@ -7,12 +7,12 @@ Created on Mon Oct 30 20:53:11 2017
 """
 
 import BShelper as soup
-import _thread
 import browser as br   
 import tools
 from Share import Share
 from Share import MarketPlace
 import json
+from threading import Thread
 
 class XetraDiscovery():
     def __init__(self):
@@ -49,16 +49,21 @@ class XetraDiscovery():
         # devide the main list to chunks to apply parallelization
         _chunks = [_shareURLs[ x:x + 100 ] for x in range(0, len (_shareURLs), 100)]
         # process chunks in parallel
+        processes = []
         for _chk in _chunks:
-            break
-            _thread.start_new_thread( self.readShareInfo, ( _chk, ))
+            processes.append(Thread(target=self.readShareInfo, args=(_chk, )))
+            # start the new thread
+            processes[ len (processes) -1 ].start()
+            # processes.append( _thread.start_new_thread(self.readShareInfo , ( _chk, )) )
+        for p in processes:
+            p.join()
         self.writeJson()
         return
    
     def loadURL(self):
         # generate the url using the paginSize and pageNum params
         _url = self.DOMAIN + self.BASEURL
-        return br.cURL(_url.format(self.PAGESIZE, self.PAGENUM))
+        return br.url_request(_url.format(self.PAGESIZE, self.PAGENUM))
    
     def readPagingLength(self, pageSource):
         # read the pagination section which is represented as a ul HTML element
@@ -98,8 +103,7 @@ class XetraDiscovery():
     
     def readShareInfo(self, urls):
         # iterate over share urls
-        urls = urls[:3]
-        print ( "I received {}".format( [x.split('/')[ len(x.split('/')) - 1 ] for x in urls] ) )
+        # print ( "I received {}".format( [x.split('/')[ len(x.split('/')) - 1 ] for x in urls] ) )
         for _url in urls:
             _url = self.DOMAIN + _url
             # open the url and convert it to a soup object
@@ -132,39 +136,45 @@ class XetraDiscovery():
             if "sector" in _dt.get_text().lower():
                 # find the next dd element which stores the value
                 _dd = _dt.find_next_sibling("dd")
-                _shareObj.SECTOR = _dd.get_text()
+                _shareObj.SECTOR = str(_dd.get_text())
                 continue
             elif "country" in _dt.get_text().lower():
                 # find the next dd element which stores the value
                 _dd = _dt.find_next_sibling("dd")
-                _shareObj.COUNTRY = _dd.get_text()
+                _shareObj.COUNTRY = str(_dd.get_text())
                 continue
             elif "symbol" in _dt.get_text().lower():
                 # find the next dd element which stores the value
                 _dd = _dt.find_next_sibling("dd")
-                _shareObj.SYMBOL= _dd.get_text()
+                _shareObj.SYMBOL= str(_dd.get_text())
                 continue
             elif "isin" in _dt.get_text().lower():
                 # find the next dd element which stores the value
                 _dd = _dt.find_next_sibling("dd")
-                _shareObj.ISIN = _dd.get_text()
+                _shareObj.ISIN = str(_dd.get_text())
                 continue
             elif "first trading day" in _dt.get_text().lower():
                 # find the next dd element which stores the value
                 _dd = _dt.find_next_sibling("dd")
-                _shareObj.OPENINGDATE = _dd.get_text()
+                _shareObj.OPENINGDATE = str(_dd.get_text())
                 continue
             elif "first price" in _dt.get_text().lower():
                 # find the next dd element which stores the value
                 _dd = _dt.find_next_sibling("dd")
-                _shareObj.OPENINGPRICE = _dd.get_text()
-        _shareObj.MARKET = MarketPlace.Xetra
+                _shareObj.OPENINGPRICE = str(_dd.get_text())
+        _shareObj.MARKET = MarketPlace.Xetra.name
         _shareObj.resolveSymbolCountry()
         return _shareObj
     
     def writeJson(self):
+        ls = []
+        for k, v in self.RESULT.items():
+            ls.append(v)
+        out = dict()
+        out["data"] = ls
         with open('data.json', 'w') as fp:
-            json.dump(self.RESULT.__dict__, fp, sort_keys=True, indent=4)
+            fp.write( json.dumps( out, default=lambda o: o.__dict__, indent = 4 ) )
+        print ("crawling is finished")
         return
     
 discoveryObj = XetraDiscovery()
