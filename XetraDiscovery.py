@@ -46,7 +46,7 @@ class Xetra():
             # call the next pages in a loop and repeat the above process
 
         # devide the main list to chunks to apply parallelization
-        _chunks = [_shareURLs[ x:x + 100 ] for x in range(0, len (_shareURLs), 100)]
+        _chunks = [_shareURLs[ x:x + 25 ] for x in range(0, len (_shareURLs), 25)]
         # process chunks in parallel
         processes = []
         for _chk in _chunks:
@@ -101,7 +101,7 @@ class Xetra():
     
     def readShareInfo(self, urls):
         # iterate over share urls
-        # print ( "I received {}".format( [x.split('/')[ len(x.split('/')) - 1 ] for x in urls] ) )
+        print ( "I started" )
         for _url in urls:
             _url = self.DOMAIN + _url
             # open the url and convert it to a soup object
@@ -113,6 +113,7 @@ class Xetra():
             # <dd> value </dd>
             shareObj = self.populateShareInfo(_pageSource)
             self.RESULT[ shareObj.SYMBOL ] = shareObj
+        print ( "I finished" )
         return
     
     def populateShareInfo(self, pageSource):
@@ -243,7 +244,7 @@ def writeJson(dictObj):
         ls.append(v)
     out = dict()
     out["data"] = ls
-    with open('data.json', 'w') as fp:
+    with open('data1.json', 'w') as fp:
         fp.write( json.dumps( out, default=lambda o: o.__dict__, indent = 4 ) )
     return
 
