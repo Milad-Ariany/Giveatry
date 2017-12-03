@@ -106,7 +106,7 @@ class Xetra():
             _url = self.DOMAIN + _url
             # open the url and convert it to a soup object
             #browser.get(_url)
-            _pageSource = br.cURL(_url)
+            _pageSource = br.url_request(_url)
             # expected structure
             # <dl class="list-tradable-details">
             # <dt> lable </dt>
