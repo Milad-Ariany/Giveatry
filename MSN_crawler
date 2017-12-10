@@ -37,16 +37,9 @@ class Financial_Info():
         self.BookValue = None
         
     def crawl(self):
-        self.setRevenue()
-        self.setNetIncome()
-        self.setGrossProfit()
-        self.setEPS()
-        self.setAssets()
-        self.setLiabilities()
-        self.setEquity()
-        self.setLiabilitiesAndEquity()
-        self.setBookValue()  
-        self.setNetProfitMargin()
+        self.set1()
+        self.set2()
+        self.set3()
         return
         
     def navigation(self, key):
@@ -90,88 +83,52 @@ class Financial_Info():
             print (_rec)
         return _output
         
-    def setRevenue(self):
+    def set1(self):
         _page_source = self.navigation("Revenue")
         _soup = soup.Helper()
         _block = _soup.elemSelector( "div", {"class": "table-data-rows"}, _page_source )
+        
         _ls = self.extractUlLi( _block, "Total Revenue" )
         self.Revenue = _ls[ len(_ls) - 1 ] # keep the last record
-        return
-    
-    def setGrossProfit(self):
-        _page_source = self.navigation("GrossProfit")
-        _soup = soup.Helper()
-        _block = _soup.elemSelector( "div", {"class": "table-data-rows"}, _page_source )
+        
         _ls = self.extractUlLi(_block, "Gross Profit")
         self.GrossProfit = _ls[ len(_ls) - 1 ] # keep the last record
-        return
-    
-    def setNetIncome(self):
-        _page_source = self.navigation("NetIncome")
-        _soup = soup.Helper()
-        _block = _soup.elemSelector( "div", {"class": "table-data-rows"}, _page_source )
+        
         _ls = self.extractUlLi( _block, "Net Income" )
         self.NetIncome = _ls[ len(_ls) - 1 ] # keep the last record
-        return
-    
-    def setEPS(self):
-        _page_source = self.navigation( "EPS" )
-        _soup = soup.Helper()
-        _block = _soup.elemSelector( "div", {"class": "table-data-rows"}, _page_source )
+        
         _ls = self.extractUlLi( _block, "Basic EPS" )
         self.EPS = _ls[ len(_ls) - 1 ] # keep the last record
         return
         
-    def setAssets(self):
+    def set2(self):
         _page_source = self.navigation("Assets")
         _soup = soup.Helper()
         _block = _soup.elemSelector( "div", {"class": "table-data-rows"}, _page_source )
         _ls = self.extractUlLi(_block, "Total Assets")
         self.Assets = _ls[ len(_ls) - 1 ] # keep the last record
-        return
-    
-    def setLiabilities(self):
-        _page_source = self.navigation("Liabilities")
-        _soup = soup.Helper()
-        _block = _soup.elemSelector( "div", {"class": "table-data-rows"}, _page_source )
+        
         _ls = self.extractUlLi(_block, "Total Liabilities")
         self.Liabilities = _ls[ len(_ls) - 1 ] # keep the last record
-        return
-    
-    def setEquity(self):
-        _page_source = self.navigation("Equity")
-        _soup = soup.Helper()
-        _block = _soup.elemSelector( "div", {"class": "table-data-rows"}, _page_source )
+        
         _ls = self.extractUlLi(_block, "Total Equity")
         self.Equity = _ls[ len(_ls) - 1 ] # keep the last record
-        return
         
-    def setLiabilitiesAndEquity(self):
-        _page_source = self.navigation("LiabilitiesAndEquity")
-        _soup = soup.Helper()
-        _block = _soup.elemSelector( "div", {"class": "table-data-rows"}, _page_source )
         _ls = self.extractUlLi(_block, "Total Liabilities and Equity")
         self.LiabilitiesAndEquity = _ls[ len(_ls) - 1 ] # keep the last record
         return
         
-    def setBookValue(self):
+    def set3(self):
         _page_source = self.navigation("BookValue")
         _soup = soup.Helper()
         _block = _soup.elemSelector( "div", {"class": "stock-highlights-right-container"}, _page_source )
         _ls = self.extractUlLi(_block, "Book Value/Share")
         self.BookValue = _ls[ len(_ls) - 1 ] # keep the last record
-        return
-
-    def setNetProfitMargin(self):
-        _page_source = self.navigation("NetProfitMargin")
-        _soup = soup.Helper()
-        _block = _soup.elemSelector( "div", {"class": "stock-highlights-left-container"}, _page_source )
+        
         _ls = self.extractUlLi(_block, "Net Profit Margin")
         self.NetProfitMargin = _ls[ len(_ls) - 1 ] # keep the last record
         return
     
-# page request
-#browser.get("http://www.msn.com/en-us/money/stockdetails/fi-126.1.GOOGL.NAS")
 finObj = Financial_Info( "Per", "fi-126.1.GOOGL.NAS" )
 finObj.crawl()
 
