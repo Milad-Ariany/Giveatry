@@ -204,7 +204,7 @@ class Financial_Info():
 # page request
 #browser.get("http://www.msn.com/en-us/money/stockdetails/fi-126.1.GOOGL.NAS")
 finObj = Financial_Info(SeleniumHelper().initialize(), "Per", "fi-126.1.GOOGL.NAS")
-finObj.crawl()
+#finObj.crawl()
 
 print (finObj.NetIncome, finObj.Revenue, finObj.EPS, finObj.GrossProfit)
 print (finObj.Assets, finObj.Equity, finObj.Liabilities, finObj.LiabilitiesAndEquity)
@@ -214,9 +214,9 @@ print (finObj.BookValue, finObj.NetProfitMargin)
 # http://www.msn.com/en-us/money/stockdetails/fi-200.1.{symbol}.FRA
 
 #
-#import cProfile
-#import re
-#import pstats
-#cProfile.run('finObj.crawl()', 'restats')
-#p = pstats.Stats('restats')
-#p.strip_dirs().sort_stats(-1).print_stats()
+import cProfile
+import re
+import pstats
+cProfile.run('finObj.crawl()', 'restats')
+p = pstats.Stats('restats')
+p.strip_dirs().sort_stats(-1).print_stats()

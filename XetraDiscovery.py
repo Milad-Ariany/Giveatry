@@ -53,7 +53,6 @@ class Xetra():
             processes.append(Thread(target=self.readShareInfo, args=(_chk, )))
             # start the new thread
             processes[ len (processes) -1 ].start()
-            # processes.append( _thread.start_new_thread(self.readShareInfo , ( _chk, )) )
         for p in processes:
             p.join()
         return
