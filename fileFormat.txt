@@ -1,58 +1,59 @@
 {
     "data": [
         {
-			"link": "",
-			"Symbol": "Goog",
-			"Currency": "USD",
-			"Market"; "NASDAQ",
-			"Company": "Google",
-			"Category": "Technology",
-			"Financial_Info":[
-				{
-					"2017":
-					{
-						"Revenue": "",
-						"Gross Profit": "",
-						"Net_Income": "",
-						"Assets": "",
-						"Liabilities": "",
-						"Equity": "",
-						"Liabilities_and_Equity",
-						"EPS": "",
-						"Net_Profit_Margin": Net_Income / Revenue,
-						"BookValue": "",
-						Quarters: [					
-							"2017-Q1": [
-								"Revenue": "",
-								"Gross Profit": "",
-								"Net_Income": "",
-								"Assets": "",
-								"Liabilities": "",
-								"Equity": "",
-								"Liabilities_and_Equity"
-								"EPS": "",
-								"BookValue": "",
-								"Net_Profit_Margin": Net_Income / Revenue
-							],
-							...
-						],
-						.
-						.
-						.
-				}
-			],
-			"Share_Pricing": [
-				{
-					"12-12-2017": [
-						"Price": "",
-						"P/E": 
-						"ForwardP/E":
-						"PEG": ""
-						...
-					],
-					...
-				},
-			]
+            "Goog": [
+    			"Symbol": "Goog",
+    			"Sector": "Tech",
+    			"CompanyName"; "Google",
+    			"Country": "USA",
+    			"ISIN": "xxxxx",
+    			"WKN": "xxxx",
+    			"MarketBasedInfo":[
+    				{
+        				"Market": "NASDAQ",
+        				"Currency": "DOLLAR",
+        				"MSNLink": "",
+        				QuarterBasedFinancialInfo: [
+    					  {
+    						"Quarter": "2017-Q1",
+                            "Revenue": "",
+                            "Gross Profit": "",
+                            "Net_Income": "",
+                            "Assets": "",
+                            "Liabilities": "",
+                    	    "Equity": "",
+                            "Liabilities_and_Equity"
+                            "EPS": "",
+                            "BookValue": "",
+                            "Net_Profit_Margin": Net_Income / Revenue
+    					  },
+    				      {
+        					....
+    					  }
+        				...	
+        				],
+        				Pricing: [
+                          {
+            				"Date": "12-12-2018",
+            				"Price": "",
+    						"P/E": 
+    						"ForwardP/E":
+    						"PEG": ""
+        				  },
+        				...
+        				]
+    					
+    				},
+    				
+    				...
+    			]
+    		],
+    		
+    		"SAP": [
+    		
+    		]
+    		,
 		}
+		..
 	]
 }
