@@ -17,6 +17,10 @@ class MarketPlace (Enum):
     Spain = 5 # fi-199.1.{}.MCE
     Britain = 6 # fi-151.1.{}.LON       
 
+class Period (Enum):
+    Annual = 0,
+    Quarter = 1
+    
 class Share():
     def __init__(self, symbol=None):
         self.Symbol = symbol
@@ -37,7 +41,9 @@ class MarketBasedInfo():
         
 class Financial():
     def __init__(self):
-        self.Quarter = None
+        self.Period = None # either Annual or Quarter
+        self.Quarter = None # represents quarter report
+        self.Year = None # represents annual report
         self.Revenue = None
         self.Gross_Profit = None
         self.Net_Income = None
@@ -52,10 +58,11 @@ class Financial():
 class Price():
     def __init__(self):
         self.Date = None
-        self.Open = None
-        self.Close = None
-        self.Price = None # []
+        self.OpenPrice = None
+        self.ClosePrice = None
+        self.HighPrice = None
+        self.LowPrice = None
+        self.Volume = None
         self.PE = None
         self.ForwardPE = None
         self.PEG = None
-                
