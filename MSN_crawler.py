@@ -16,6 +16,7 @@ Created on Mon Aug 14 20:33:20 2017
 from enum import Enum
 import BShelper as soup
 import browser as br
+from Share import Financial
 import re
 
 class Interval (Enum):
@@ -24,34 +25,55 @@ class Interval (Enum):
     customeYear = 2, # format = 2017
     lastQuarter = 3,
     allQuarters = 4,
-    customeQuarter = 5 # Format = 2017-Q1
+    customeQuarter = 5 # Format = 2017 Q1
 
 class Financial_Info():
     def __init__(self, shareKey, interval = Interval.lastQuarter, customeInterval = None):
         self.Interval = interval
         self.customeInterval = customeInterval # in combination with Interval.custome[Year/Quarter]
         self.shareKey = shareKey # Format: fi-126.1.GOOGL.NAS
-        self.Period = None # represents quarter report
-        self.Revenue = None
-        self.GrossProfit = None
-        self.NetIncome = None
-        self.Assets = None
-        self.Liabilities = None
-        self.Equity = None
-        self.LiabilitiesAndEquity = None
-        self.EPS = None
-        self.NetProfitMargin  = None
-        self.BookValue = None
+        self.shift = 0
+        self.columnIndex = 1 # the least column
         
     def crawl(self):
         if not self.validateInterval():
             print ("Invalid Interval input \n Please follow samples such as 2017 or 2017 Q1 to 2017 Q4")
             return
-        self.incomeStatement()
-        self.balanceSheet()
-        self.analysis()
-        return
+        if self.Interval in [Interval.allQuarters, Interval.allYears]:
+            return self.multiplePeriods()
+        else:
+            return self.singlePeriod()
+    
+    def multiplePeriods(self):
+        result = []
+        if self.Interval == Interval.allYears:
+            self.Interval = Interval.lastYear
+        elif self.Interval == Interval.allQuarters:
+            self.Interval = Interval.lastQuarter
         
+        while (True):
+            financialObj = self.singlePeriod()
+            # if the produced object is empty it means all existing periods are covered
+            if financialObj.__dict__ == Financial().__dict__:
+                break
+            result.append(financialObj)
+            print (self.shift, financialObj.__dict__)
+            # check the previous info
+            self.shift -= 1
+        return result
+        
+    def singlePeriod(self):
+        financialObj = Financial()
+        _page_source = self.incomeStatement( financialObj )
+        self.setPeriod( _page_source, financialObj )
+        self.balanceSheet( financialObj )
+        # if so far, no result is extracted out of balance sheet and income statement
+        # then don't extract analysis info since it is period independent
+        if financialObj.__dict__ == Financial().__dict__:
+            return financialObj # an empty object
+        self.analysis( financialObj )
+        return financialObj
+
     def validateInterval(self):
         # define paterns
         regex_year = r"^\d{4}$"
@@ -67,56 +89,66 @@ class Financial_Info():
             return True
         return False
     
-    def incomeStatement(self):
+    def setPeriod(self, _page_source, financialObj):
+        if _page_source is None:
+            return
+        # find index of the column contains desired interval
+        self.findColumnIndex( _page_source )
+        _soup = soup.Helper()
+        _block = _soup.elemSelector( "div", {"class": "table-rows"}, _page_source )
+        financialObj.Period  = self.extractUlLi(_block, "Values in Millions", "p")
+        return
+    
+    def incomeStatement(self, financialObj):
         _page_source = self.navigation("income_statement")
         if _page_source == None:
+            print ("Income statement source page for {} is not loaded correctly".format( self.shareKey ))
             return
         # find index of the column contains desired interval
-        _index = self.findColumnIndex( _page_source )
+        self.findColumnIndex( _page_source )
         _soup = soup.Helper()
         _block = _soup.elemSelector( "div", {"class": "table-data-rows"}, _page_source )
-        # extract Total revenue
-        self.Revenue = self.extractUlLi( _block, _index, "Total Revenue" )
-        # extract gross profit
-        self.GrossProfit = self.extractUlLi(_block,  _index, "Gross Profit")
-        # extract net income
-        self.NetIncome = self.extractUlLi( _block, _index, "Net Income" )
-        # extract basic eps
-        self.EPS = self.extractUlLi( _block, _index, "Basic EPS" )
-        return
+        # read the desired info
+        financialObj.Revenue = self.extractUlLi( _block, "Total Revenue" )
+        financialObj.CostofRevenue = self.extractUlLi( _block, "Cost of Revenue" )
+        financialObj.GrossProfit = self.extractUlLi( _block, "Gross Profit")
+        financialObj.NetIncome = self.extractUlLi( _block, "Net Income" )
+        financialObj.EPS = self.extractUlLi( _block, "Basic EPS" )
+        financialObj.DividendPerShare = self.extractUlLi( _block, "Dividend Per Share" )
+        return _page_source
         
-    def balanceSheet(self):
+    def balanceSheet(self, financialObj):
         _page_source = self.navigation("balance_sheet")
         if _page_source == None:
+            print ("Balance sheet source page for {} is not loaded correctly".format( self.shareKey ))
             return
         # find index of the column contains desired interval
-        _index = self.findColumnIndex( _page_source )
+        self.findColumnIndex( _page_source )
         _soup = soup.Helper()
         _block = _soup.elemSelector( "div", {"class": "table-data-rows"}, _page_source )
-        # extract Total assets
-        self.Assets  = self.extractUlLi(_block, _index, "Total Assets")
-        # extract Total liability
-        self.Liabilities = self.extractUlLi(_block, _index, "Total Liabilities")
-        # extract Total equity
-        self.Equity = self.extractUlLi(_block, _index, "Total Equity")
-        # extract Total liability and Equity
-        self.LiabilitiesAndEquity = self.extractUlLi(_block, _index, "Total Liabilities and Equity")
-        return
+        # extract desired values
+        financialObj.Assets  = self.extractUlLi(_block, "Total Assets")
+        financialObj.Liabilities = self.extractUlLi(_block, "Total Liabilities")
+        financialObj.Equity = self.extractUlLi(_block, "Total Equity")
+        financialObj.LiabilitiesAndEquity = self.extractUlLi(_block, "Total Liabilities and Equity")
+        return _page_source
         
-    def analysis(self):
+    def analysis(self, financialObj):
         _page_source = self.navigation("analysis")
         if _page_source == None:
+            print ("Analysis source page for {} is not loaded correctly".format( self.shareKey ))
             return
         
         _soup = soup.Helper()
         _block = _soup.elemSelector( "div", {"class": "stock-highlights-right-container"}, _page_source )
         # by default, the UL represents data in analysis part contains only 2 columns
         # and the index of LI which contains the data is always 1
-        # extract bookvalue
-        self.BookValue = self.extractUlLi(_block, 1, "Book Value/Share")
-        # extract Net Profit MArgin
-        self.NetProfitMargin = self.extractUlLi(_block, 1, "Net Profit Margin")
-        return
+        self.columnIndex = 1
+        # read desired values
+        financialObj.BookValue = self.extractUlLi(_block, "Book Value/Share")
+        financialObj.NetProfitMargin = self.extractUlLi(_block, "Net Profit Margin")
+        financialObj.ReturnonCapital = self.extractUlLi(_block, "Return on Capital")
+        return _page_source
     
     def navigation(self, key):
         if key == "income_statement":
@@ -151,50 +183,60 @@ class Financial_Info():
         
         return None
 
-    def extractUlLi(self, block, index, indicator):
+    def extractUlLi(self, block, indicator, elem = "li"):
+        if self.columnIndex < 1 or self.columnIndex is None:
+            return None
         # block: HTML element block
         # index of desired LI in each UL
         # The measure we are looking for
         # each UL contains information of only one indicator
         for _ultag in block.find_all("ul"):
-            _LIs = _ultag.find_all("li")
-            if len(_LIs) < index:
+            _elems = _ultag.find_all(elem)
+            if len(_elems) < self.columnIndex:
                 continue
             # the first LI contains the indicator text
-            if  indicator in _LIs[0].text.strip() :
-                return _LIs[index].text.strip()
+            if  indicator.strip().lower() in _elems[0].text.strip().lower():
+                return _elems[self.columnIndex].text.strip()
         return None
     
     def findColumnIndex(self, page_source):
+        # shift: to shift the index
         _soup = soup.Helper()
         _block = _soup.elemSelector( "div", {"class": "table-rows"}, page_source )
         if self.Interval in [Interval.lastQuarter,  Interval.lastYear]:
             # extract the first UL element which contains all time intervals
             _intervals = _block.find_all("ul")[0]
             # return index of last element which is last quarter or last year
-            _lastElemInx = len( _intervals.find_all("li") ) - 1
-            return _lastElemInx 
+            self.columnIndex = ( len( _intervals.find_all("li") ) -  1 ) + self.shift
+            return self.columnIndex 
         if self.Interval in [Interval.customeQuarter,  Interval.customeYear]:
             # extract the first UL element which contains all time intervals
+            if type(_block.find_all("ul")) is not list:
+                print (_block.find_all("ul"))
             _intervals = _block.find_all("ul")[0]
             # find the p element which contains the desired interval
             _myInterval = _intervals.find("p", text = self.customeInterval)
+            if _myInterval is None:
+                return None
             # find its immidiate parent which is a LI element
             while (True):
                 _myInterval = _myInterval.parent
                 if _myInterval.name == 'li':
                     break
             # return index of last element which is last quarter or last year
-            _inx = ((_intervals.index(_myInterval) + 1) / 2) - 1
-            return int(_inx)
-        return -1
-    
-finObj = Financial_Info( "fi-126.1.GOOGL.NAS", Interval.customeYear, "2015" )
-finObj.crawl()
+            self.columnIndex = ((_intervals.index(_myInterval) + 1) / 2) + self.shift
+            return self.columnIndex
+        return None
 
-print (finObj.NetIncome, finObj.Revenue, finObj.EPS, finObj.GrossProfit)
-print (finObj.Assets, finObj.Equity, finObj.Liabilities, finObj.LiabilitiesAndEquity)
-print (finObj.BookValue, finObj.NetProfitMargin)
+# https://www.msn.com/en-us/money/stockdetailsvnext/financials/income_statement/quarterly/fi-126.1.GOOGL.NAS
+find = Financial_Info( "fi-126.1.GOOGL.NAS", Interval.allQuarters, "2017 Q1" )
+finObj = find.crawl()
+
+if type(finObj) is list:
+    for obj in finObj:
+        print (obj.__dict__)
+else:
+    print (finObj.__dict__)
 
 #import cProfile
 #import re

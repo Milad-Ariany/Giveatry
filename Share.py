@@ -20,7 +20,7 @@ class MarketPlace (Enum):
 class Period (Enum):
     Annual = 0,
     Quarter = 1
-    
+
 class Share():
     def __init__(self, symbol=None):
         self.Symbol = symbol
@@ -31,30 +31,31 @@ class Share():
         self.OpeningPrice = None
         self.OpeningDate = None
         self.WKN = None
-        
+
 class MarketBasedInfo():
     def __init__(self):
         self.Market = None
         self.Currency = None
         self.MSNLink = None
         self.QuarterBasedFinancialInfo = None # = Financial Object
-        
+
 class Financial():
     def __init__(self):
-        self.Period = None # either Annual or Quarter
-        self.Quarter = None # represents quarter report
-        self.Year = None # represents annual report
+        self.Period = None # represents quarter report
         self.Revenue = None
-        self.Gross_Profit = None
-        self.Net_Income = None
+        self.CostofRevenue = None
+        self.GrossProfit = None
+        self.NetIncome = None
         self.Assets = None
         self.Liabilities = None
         self.Equity = None
-        self.Liabilities_and_Equity = None
+        self.LiabilitiesAndEquity = None
         self.EPS = None
-        self.Net_Profit_Margin = None
+        self.DividendPerShare = None
+        self.NetProfitMargin  = None
         self.BookValue = None
-        
+        self.ReturnonCapital = None
+
 class Price():
     def __init__(self):
         self.Date = None
@@ -66,3 +67,5 @@ class Price():
         self.PE = None
         self.ForwardPE = None
         self.PEG = None
+        self.EPSEstimate = None # analysis page
+        self.PriceBookValue = None # should be calculated
