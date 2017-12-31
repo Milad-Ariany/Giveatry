@@ -18,6 +18,7 @@ import BShelper as soup
 import browser as br
 from Share import Financial
 import re
+from threading import Thread
 
 class Interval (Enum):
     lastYear = 0,
@@ -57,21 +58,32 @@ class Financial_Info():
             if financialObj.__dict__ == Financial().__dict__:
                 break
             result.append(financialObj)
-            print (self.shift, financialObj.__dict__)
             # check the previous info
             self.shift -= 1
         return result
         
     def singlePeriod(self):
         financialObj = Financial()
-        _page_source = self.incomeStatement( financialObj )
-        self.setPeriod( _page_source, financialObj )
-        self.balanceSheet( financialObj )
+        processes = []
+        processes.append( Thread(target=self.incomeStatement, args=(financialObj, )) )
+        #_page_source = self.incomeStatement( financialObj )
+        processes.append( Thread(target=self.balanceSheet, args=(financialObj, )) )
+        #self.balanceSheet( financialObj )
+        for p in processes:
+            p.start()
+            p.join()
         # if so far, no result is extracted out of balance sheet and income statement
         # then don't extract analysis info since it is period independent
         if financialObj.__dict__ == Financial().__dict__:
             return financialObj # an empty object
-        self.analysis( financialObj )
+        processes = []
+        processes.append( Thread(target=self.analysis, args=(financialObj, )) )
+        # self.analysis( financialObj )
+        processes.append( Thread(target=self.setPeriod, args=(financialObj, )) )
+        # self.setPeriod( _page_source, financialObj )
+        for p in processes:
+            p.start()
+            p.join()
         return financialObj
 
     def validateInterval(self):
@@ -89,8 +101,10 @@ class Financial_Info():
             return True
         return False
     
-    def setPeriod(self, _page_source, financialObj):
-        if _page_source is None:
+    def setPeriod(self, financialObj):
+        _page_source = self.navigation("income_statement")
+        if _page_source == None:
+            print ("Income statement source page for {} is not loaded correctly".format( self.shareKey ))
             return
         # find index of the column contains desired interval
         self.findColumnIndex( _page_source )
@@ -115,7 +129,13 @@ class Financial_Info():
         financialObj.NetIncome = self.extractUlLi( _block, "Net Income" )
         financialObj.EPS = self.extractUlLi( _block, "Basic EPS" )
         financialObj.DividendPerShare = self.extractUlLi( _block, "Dividend Per Share" )
-        return _page_source
+        # calculate Net Profit Margin
+        if financialObj.NetIncome is None and financialObj.Revenue is None:
+            return
+        _netIncome = float( financialObj.NetIncome.replace(',', '') )
+        _revenue = float( financialObj.Revenue.replace(',', '') )
+        financialObj.NetProfitMargin = round( (_netIncome / _revenue) * 100, 2 )
+        return
         
     def balanceSheet(self, financialObj):
         _page_source = self.navigation("balance_sheet")
@@ -131,7 +151,7 @@ class Financial_Info():
         financialObj.Liabilities = self.extractUlLi(_block, "Total Liabilities")
         financialObj.Equity = self.extractUlLi(_block, "Total Equity")
         financialObj.LiabilitiesAndEquity = self.extractUlLi(_block, "Total Liabilities and Equity")
-        return _page_source
+        return
         
     def analysis(self, financialObj):
         _page_source = self.navigation("analysis")
@@ -146,9 +166,8 @@ class Financial_Info():
         self.columnIndex = 1
         # read desired values
         financialObj.BookValue = self.extractUlLi(_block, "Book Value/Share")
-        financialObj.NetProfitMargin = self.extractUlLi(_block, "Net Profit Margin")
         financialObj.ReturnonCapital = self.extractUlLi(_block, "Return on Capital")
-        return _page_source
+        return
     
     def navigation(self, key):
         if key == "income_statement":
@@ -229,12 +248,13 @@ class Financial_Info():
         return None
 
 # https://www.msn.com/en-us/money/stockdetailsvnext/financials/income_statement/quarterly/fi-126.1.GOOGL.NAS
-find = Financial_Info( "fi-126.1.GOOGL.NAS", Interval.allQuarters, "2017 Q1" )
+find = Financial_Info( "fi-213.1.ADS.ETR", Interval.allYears, "2017 Q1" )
 finObj = find.crawl()
 
 if type(finObj) is list:
     for obj in finObj:
         print (obj.__dict__)
+        print ("-----")
 else:
     print (finObj.__dict__)
 
