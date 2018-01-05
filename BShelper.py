@@ -24,5 +24,7 @@ class Helper(BeautifulSoup):
         #_soup.find(htmlElement, {"class" : className})
         _elem = _soup.find( htmlElement, attributes )
         # convert the block to a soup object
+        if _elem is None:
+            return None
         _elem = self.convertBlockToSoup( _elem )
         return _elem

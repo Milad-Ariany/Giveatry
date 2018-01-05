@@ -3,15 +3,23 @@
 			"Symbol": "Goog",
 			"Sector": "Tech",
 			"CompanyName"; "Google",
-			"Country": "USA",
 			"ISIN": "xxxxx",
 			"WKN": "xxxx",
+			"Competitors": [
+    			{
+        			CompanyName = "",
+        			Symbol = ""
+    			},
+    			...
+    			
+			],
 			"MarketBasedInfo":[
 				{
 				"Market": "NASDAQ",
+				"Country": "USA",
 				"Currency": "DOLLAR",
 				"MSNLink": "fi-200.1.CY1.FRA",
-				QuarterBasedFinancialInfo: [
+				FinancialInfo: [
 					  {
 						"Period": "2017-Q1",
                         "Revenue": "",
@@ -25,13 +33,7 @@
                         "BookValue": "",
                         "Net_Profit_Margin": Net_Income / Revenue
 					  },
-				      {
-					....
-					  }
-				...	
-				],
-				AnnualBasedFinancialInfo: [
-    				{
+     				  {
 						"Period": "2017",
                         "Revenue": "",
                         "Gross Profit": "",
@@ -52,19 +54,24 @@
 				Pricing: [
                   {
     				"Date": "12-12-2018",
+    				"open": "",
+    				"close": "",
     				"high": "",
     				"low": "",
+    				"volume": "",
 					"P/E": "",
 					"ForwardP/E": "",
 					"PEG": "",
-					""
+					"EPSEstimate": "", 
+					"PriceBookValue": ""
 				  },
 				...
 				]
 					
 				},
-				
+				{
 				...
+				}
 			]
 		]
 }
