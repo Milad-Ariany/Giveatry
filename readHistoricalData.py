@@ -10,34 +10,32 @@ import time
 from datetime import datetime, timedelta
 import math
 import browser as br   
-import json
 from Share import Price
+import json
+from enum import Enum
+        
+class Interval (Enum):
+    lastYear = 0
 
-
-class History():
-    def __init__(self, symbol):
-        self.baseurl = "https://finance.services.appex.bing.com/Market.svc/ChartDataV5?symbols={}&chartType=1y&isEOD=False&lang=en-US&isCS=true&isVol=true"
-        # https://finance.services.appex.bing.com/Market.svc/ChartDataV5?symbols=200.1.ADS.FRA&chartType=1y&isEOD=False&lang=en-US&isCS=true
-        self.symbol = symbol
-        self.MSNLink = None
-        self.data = None # year hostorical data
-        self.today = None
-        self.daysInfo = list()
+class HistoricalPrices():
+    def __init__(self, MSNLink, Interval = Interval.lastYear):
+        self.interval = Interval
+        self.MSNLink = MSNLink
+        self.dataSource = None # hostorical data [ Prices ]
+        self.prices = list()
         
     def crawl(self):
-        # read the JSON file of the symbol
-        # extract the MSNlink of the share
-        MSNLink = "fi-200.1.ADS.FRA"
+        # expected format of MSNLink: fi-xxx.xxxx.xxx
         # remove the fi- from the beginning of the symbol
-        self.MSNLink = MSNLink[3:]
+        self.MSNLink = self.MSNLink[3:]
         # read historical data of a year
         self.yearHistory()
-        self.getToday()
-        self.eachDay()
+        self.eachDay( self.getToday() )
         return
     
     def yearHistory(self):
-        url_ = self.baseurl.format(self.MSNLink)
+        baseUrl = "https://finance.services.appex.bing.com/Market.svc/ChartDataV5?symbols={}&chartType=1y&isEOD=False&lang=en-US&isCS=true&isVol=true"
+        url_ = baseUrl.format(self.MSNLink)
         response = br.url_request(url_)
         # convert bytes to string
         response = response.decode("utf-8")
@@ -45,11 +43,11 @@ class History():
         response = response[1: (len(response) - 1 )]
         response = response.replace("'", "\"")
         # convert string representing dict to dict object
-        self.data = json.loads(response)
+        self.dataSource = json.loads(response)
         return
     
     def getToday(self):
-        time_ = self.data["utcFullRunTime"]
+        time_ = self.dataSource["utcFullRunTime"]
         # format: /Date(TIME)/
         # remove /Date( )/
         time_ = time_[6: ( len(time_) - 2 )]
@@ -59,39 +57,36 @@ class History():
         # convert epoch time to human readable time
         time_ = time.strftime('%Y-%m-%d', time.localtime(time_))
         # convert to time object
-        self.today = datetime.strptime(time_, '%Y-%m-%d')
+        _today = datetime.strptime(time_, '%Y-%m-%d')
+        return _today
+
+    def eachDay(self, today):
+        data = self.dataSource["Series"]
+        for dateOfDay in data:
+            self.prices.append( self.processDayInfo(dateOfDay, today) )
         return
     
-    def eachDay(self):
-        days = self.data["Series"]
-        for day in days:
-            self.daysInfo.append( self.processDayInfo(day) )
-        return
-    
-    def processDayInfo(self, day):
+    def processDayInfo(self, data, today):
         # expected day = dict
-        if type(day) is not dict:
+        if type(data) is not dict:
             return Price()
-        time = day.get("T", 0)
+        time = data.get("T", 0)
         if time == 0:
             return Price()
-        price = Price()
-        price.HighPrice = day.get("Hp", 0)
-        price.LowPrice = day.get("Lp", 0)
-        price.OpenPrice = day.get("Op", 0)
-        price.ClosePrice = day.get("P", 0)
-        price.Volume = day.get("V", 0)
+        priceObj = Price()
+        priceObj.HighPrice = data.get("Hp", 0)
+        priceObj.LowPrice = data.get("Lp", 0)
+        priceObj.OpenPrice = data.get("Op", 0)
+        priceObj.ClosePrice = data.get("P", 0)
+        priceObj.Volume = data.get("V", 0)
         # convert time value from minutes to days
         time = time / 1440
         # calculate difference of today and time
         time = 365 - time
-        # calculate time of day object based on today
-        price.Date = self.today - timedelta( days = time )
-        return price
+        # calculate time of day object based on today and extract the date
+        priceObj.Date = str( today - timedelta( days = time ) )[:10]
+        return priceObj
         
-h = History("A")
-h.crawl()
-print (type(h.daysInfo))
-
-for day in h.daysInfo:
-    print ("date: {} , OpenPrice: {}".format( day.Date, day.OpenPrice ))
+## TEST
+#h = History("AAPL")
+#h.crawl()
