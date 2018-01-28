@@ -10,7 +10,7 @@ import time
 from datetime import datetime, timedelta
 import math
 import browser as br   
-from Share import Price
+from PriceInfo import Price
 import json
 from enum import Enum
         
